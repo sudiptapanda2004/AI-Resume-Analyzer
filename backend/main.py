@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from database import get_db, init_db, ResumeAnalysis
-from groq_service import analyze_resume
+from groq_service import analyze_resume, generate_chat_response
 
 app = FastAPI(
     title="AI Resume Analyzer API",
@@ -89,6 +89,30 @@ def analyze(request: AnalyzeRequest, db: Session = Depends(get_db)):
 
 
 @app.get("/history", response_model=list[HistoryItem])
+class ChatMessageItem(BaseModel):
+    role: str  # Will accept "user" or "assistant"
+    content: str
+
+class ChatSessionRequest(BaseModel):
+    messages: list[ChatMessageItem]
+
+@app.post("/api/chat")
+def chat_endpoint(request: ChatSessionRequest):
+    if not request.messages:
+        raise HTTPException(status_code=400, detail="Conversation history cannot be empty.")
+    
+    try:
+        # Convert Pydantic schemas to standard dictionaries for the Groq client
+        formatted_history = [
+            {"role": "assistant" if m.role == "bot" else m.role, "content": m.content} 
+            for m in request.messages
+        ]
+        
+        ai_reply = generate_chat_response(formatted_history)
+        return {"response": ai_reply}
+        
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Groq Chat service error: {str(e)}")
 def get_history(db: Session = Depends(get_db), limit: int = 20):
     records = (
         db.query(ResumeAnalysis)

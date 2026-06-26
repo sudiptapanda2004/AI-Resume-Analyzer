@@ -47,18 +47,50 @@ export const Chatbot: React.FC = () => {
     setIsLoading(true);
 
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1200));
+      // 1. Gather current conversation history and format it for the backend schema
+      const historyPayload = messages.map(msg => ({
+        role: msg.sender === 'user' ? 'user' : 'bot',
+        content: msg.text
+      }));
 
+      // Append the fresh user message you just typed into the array
+      historyPayload.push({ role: 'user', content: input.trim() });
+
+      // 2. Make an active HTTP POST call to your running FastAPI server
+      const response = await fetch('http://localhost:8000/api/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ messages: historyPayload }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Server returned status code: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      // 3. Inject the real AI response directly into your React chat window view
       const botMessage: Message = {
         id: crypto.randomUUID(),
         sender: 'bot',
-        text: `This is a mock response to: "${userMessage.text}". Once we link the FastAPI backend, the live AI model will reply here!`,
+        text: data.response,
         timestamp: new Date(),
       };
-
-      setMessages((prev: Message[]) => [...prev, botMessage]);
+      
+      setMessages((prev) => [...prev, botMessage]);
     } catch (error) {
       console.error('Failed to get AI response:', error);
+      
+      // Fallback error message to display on the screen if the server drops
+      const errorMessage: Message = {
+        id: crypto.randomUUID(),
+        sender: 'bot',
+        text: 'Sorry, I am having trouble connecting to the chat server right now. Please make sure your FastAPI backend is active.',
+        timestamp: new Date(),
+      };
+      setMessages((prev) => [...prev, errorMessage]);
     } finally {
       setIsLoading(false);
     }

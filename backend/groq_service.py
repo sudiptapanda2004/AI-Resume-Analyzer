@@ -235,3 +235,32 @@ def analyze_resume(resume_text: str, job_description: str) -> dict:
     raw = re.sub(r"\s*```$", "", raw)
 
     return normalize_analysis_result(json.loads(raw))
+
+def generate_chat_response(messages_history: list) -> str:
+    """
+    Communicates with Groq to generate a conversational response 
+    based on the provided message history stack.
+    """
+    if client is None:
+        raise RuntimeError("Groq client is not available. Check your GROQ_API_KEY environment variable.")
+
+    system_instruction = {
+        "role": "system",
+        "content": (
+            "You are an expert AI Resume Assistant and career coach. Your goal is to help "
+            "the user optimize their resume, map skills, address professional gaps, and prepare "
+            "for technical or behavioral job interviews. Be concise, actionable, and encouraging."
+        )
+    }
+
+    # Inject the system prompt at the very beginning of the message timeline
+    full_messages = [system_instruction] + messages_history
+
+    response = client.chat.completions.create(
+        model="llama-3.3-70b-versatile",
+        messages=full_messages,
+        temperature=0.5,
+        max_tokens=1024,
+    )
+
+    return response.choices[0].message.content.strip()

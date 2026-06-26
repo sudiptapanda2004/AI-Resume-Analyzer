@@ -12,7 +12,7 @@ echo Launching React Frontend Dev Server...
 start "Vite Frontend" cmd /k "npm run dev"
 
 :: 3. Give servers 3 seconds to spin up, then open your browser automatically
-timeout /t 3 /nobreak > null
+timeout /t 3 /nobreak > nul
 echo Opening application in your web browser...
 start http://localhost:5173
 
